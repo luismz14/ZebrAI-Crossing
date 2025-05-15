@@ -2,7 +2,7 @@ import torch
 import os
 import cv2
 import matplotlib
-matplotlib.use('Agg')  # Cambiamos el backend a 'Agg' para guardar la imagen
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pandas as pd
 import warnings
@@ -137,26 +137,19 @@ if __name__ == "__main__":
     zebra = [0, 0, 0, 0]  # TP, FP, FN, TN
     red = [0, 0, 0, 0]
     green = [0, 0, 0, 0]
-    total = len(df)
-    NoP = 0
 
-    for index, row in df.iterrows():
-        print(f"\rProcesando imagen {index + 1}/{total}", end='')      
-
-
+    for index, row in df.iterrows():     
         filename = row['file']
         image_path = carpeta + filename
 
         if not os.path.exists(image_path):
-            NoP += 1
             continue
 
         results, ptl_list, zebra_crops = process_image(image_path, model)
-        zebra, red, green = get_results(row, ptl_list, ptl_list, zebra, red, green) # Pasa ptl_list en vez de zebra_crops
+        zebra, red, green = get_results(row, ptl_list, ptl_list, zebra, red, green)
 
     zebra_metrics = calcular_metricas(zebra)
     red_metrics = calcular_metricas(red)
     green_metrics = calcular_metricas(green)
 
     plot_confusion_matrices_with_metrics(zebra, red, green, zebra_metrics, red_metrics, green_metrics)
-    print(NoP)
