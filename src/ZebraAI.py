@@ -3,6 +3,7 @@ plt.rcParams['image.interpolation'] = 'none'
 import numpy as np
 import cv2
 import math
+from sklearn.model_selection import ParameterSampler
 from sklearn.model_selection import train_test_split
 from sklearn.cluster import DBSCAN
 from sklearn.mixture import GaussianMixture
@@ -16,6 +17,7 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import random
 import os
+from tqdm import tqdm
 from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score, mean_absolute_error
 import seaborn as sns
 random.seed(42)
@@ -104,6 +106,9 @@ def noise_filter(src, noise_option='median', med_k=5, gauss_sigma=1.5, bilat_d=6
         elif noise_option == 'morph_max':
             kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (morph_kernel, morph_kernel))
             return cv2.morphologyEx(src, cv2.MORPH_DILATE, kernel)
+        elif noise_option == 'top_hat':
+            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (60, 60))
+            return cv2.morphologyEx(src, cv2.MORPH_TOPHAT, kernel)
     except:
         return src
     
@@ -404,22 +409,22 @@ def get_init_point(midpoints):
     return max(midpoints, key=lambda p: p[1])
 
 # -----------------------------------------------------------------------------------
-#  MAIN:  DATASET PREDICTION & EVALUATION
+#  PREDICTION
 # -----------------------------------------------------------------------------------
 
 def predict_img(img_path, model, **kwargs):
     path = '../data'+img_path
+    columns = ["zebra", "mode", "blocked", "x", "y", "theta_rad", "theta_deg"]
     if not os.path.exists(path):
         print("Fitxer no trobat:", path)
         return pd.Series([0, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan], index=columns)
-    columns = ["zebra", "mode", "blocked", "x", "y", "theta_rad", "theta_deg"]
 
     # Zebra Crossing ROI & Traffic Light Detection
     traffic_lights, zebra_crops = process_image(path, model)
     if is_empty(zebra_crops):
         return pd.Series([0, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan], index=columns)
     blocked = not is_empty(traffic_lights)
-    mode = traffic_lights[0]["color"] == "green" if blocked else 0
+    mode = int(traffic_lights[0]["color"] == "green") if blocked else 0
 
     # Image ROI Crop
     img = plt.imread(path)
@@ -456,9 +461,14 @@ def predict_img(img_path, model, **kwargs):
 
     except Exception as e:
         print("Error: ", e, " Imatge: ", path)
+        return pd.Series([1, mode, int(blocked), xmax//2, ymax//2, 0, 0], index=columns)
         # raise e
 
-def get_metrics(y_test, y_pred):
+# -----------------------------------------------------------------------------------
+#  EVALUATION
+# -----------------------------------------------------------------------------------
+
+def show_metrics(y_test, y_pred):
 
     # Simulem que y_test i y_pred ja estan definits
     columns_classification = ['zebra', 'mode', 'blocked']
@@ -510,20 +520,12 @@ def get_metrics(y_test, y_pred):
 
         mae_metrics[col] = mean_absolute_error(y_true_valid, y_hat_valid)
 
-    # Mostrar mètriques
-    classification_df = pd.DataFrame({
-        metric: {col: classification_metrics[col][metric] for col in classification_metrics}
-        for metric in ['accuracy', 'precision', 'recall', 'f1']
-    })
-
     mae_df = pd.Series(mae_metrics, name='MAE').to_frame()
     print("\n{:>12} | {:>20}".format("Variable", "MAE"))
     print("-" * 35)
     for var, val in mae_df["MAE"].items():
         print(f"{var:>12} | {val:>20.5f}")
 
-
-    # Mostrar matrius de confusió
     for col in classification_metrics:
         cm = classification_metrics[col]['confusion_matrix']
         plt.figure()
@@ -535,21 +537,84 @@ def get_metrics(y_test, y_pred):
         plt.savefig(output_path)
 
 
+def get_metrics(y_test, y_pred):
+    columns_regression = ['x', 'y', 'theta_rad', 'theta_deg']
+    mae_metrics = {}
+
+    for col in columns_regression:
+        y_true = y_test[col]
+        y_hat = y_pred[col]
+        valid = ~(y_true.isna() | y_hat.isna())
+        y_true_valid = y_true[valid]
+        y_hat_valid = y_hat[valid]
+        if len(y_true_valid) == 0:
+            continue
+        mae_metrics[col] = mean_absolute_error(y_true_valid, y_hat_valid)
+
+    return pd.Series(mae_metrics, name='MAE').sort_index().to_frame()
+
+
+def random_search(X_val, y_val, model, n_iter=10):
+    samples = list(ParameterSampler(param_grid, n_iter=n_iter, random_state=42))
+    results = []
+
+    for i, params in enumerate(tqdm(samples)):
+        try:
+            y_hat = X_val.apply(lambda path: predict_img(path, model, **params))
+            y_hat = y_hat.reset_index(drop=True)
+            y_val = y_val.reset_index(drop=True)
+            mae_df = get_metrics(y_val, y_hat)
+            mae_mean = sum(weights[k] * mae_df.loc[k, 'MAE'] for k in weights if k in mae_df.index)
+            results.append((params, mae_mean))
+        except Exception as e:
+            print(f"Error amb combinació {i}: {e}")
+            continue
+
+    results.sort(key=lambda x: x[1])
+    return results
+
+weights = {
+    'x': 0.15,
+    'y': 0.15,
+    'theta_rad': 0.4,
+    'theta_deg': 0.3
+}
+
+param_grid = {
+    'noise_option': ['median', 'gaussian', 'bilateral'],
+    'med_k': [3, 5, 7],
+    'gauss_sigma': [1.0, 1.5, 2.0],
+    'bilat_d': [5, 7],
+    'bilat_sigmaColor': [50, 75, 100],
+    'bilat_sigmaSpace': [50, 75, 100],
+    'morph_kernel': [3, 5, 7],
+    'thr_option': ['otsu', 'mixture'],
+    'edges_option': ['laplacian', 'canny'],
+    'canny_thr1': [25, 50, 75, 100],
+    'canny_thr2': [125, 150, 175, 200],
+    'high_thr': [180, 200, 220, 240, 260],
+    'low_thr': [100, 120, 140, 160, 180],
+    'centroids_sep': [60, 80, 100, 120],
+    'line_dist_thr': [20, 30, 40, 50, 60],
+    'ransac_dist': [10, 15, 20, 25, 30],
+    'ransac_n_iter': [100, 200, 500, 1000]
+}
+
 if __name__ == "__main__":
     model = torch.hub.load('yolov5', 'custom', path='best.pt', source='local')
-    from tqdm import tqdm
-
     tqdm.pandas()
     df = pd.read_csv('../data/dataset.csv')
     X, y = df["file"], df.drop(["file"], axis="columns")
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.01, random_state=42)
 
-    y_pred = X_test.progress_apply(lambda path: predict_img(path, model))
-    y_pred = y_pred.reset_index(drop=True)
-    y_test = y_test.reset_index(drop=True)
+    # y_pred = X_test.progress_apply(lambda path: predict_img(path, model))
+    # y_pred = y_pred.reset_index(drop=True)
+    # y_test = y_test.reset_index(drop=True)
 
-    df_test = pd.concat([X_test.reset_index(drop=True), y_test.reset_index(drop=True)], axis=1)
-    df_test.to_csv("test.csv", index=False)
-    y_pred.to_csv("pred.csv", index=False)
-
-    get_metrics(y_test, y_pred)
+    # df_test = pd.concat([X_test.reset_index(drop=True), y_test.reset_index(drop=True)], axis=1)
+    # df_test.to_csv("./results/test.csv", index=False)
+    # y_pred.to_csv("./results/pred.csv", index=False)
+    # show_metrics(y_test, y_pred)
+    
+    results = random_search(X_test, y_test, model)
+    print(results)
