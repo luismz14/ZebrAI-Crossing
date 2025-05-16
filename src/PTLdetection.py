@@ -83,7 +83,7 @@ def get_results(row, ptl_list, zebra_crops, zebra, red, green):
 
     return zebra, red, green
 
-def calcular_metricas(type):
+def calculate_metrics(type):
     total = sum(type)
     tp = type[0]
     fp = type[1]
@@ -142,14 +142,11 @@ if __name__ == "__main__":
         filename = row['file']
         image_path = carpeta + filename
 
-        if not os.path.exists(image_path):
-            continue
-
         results, ptl_list, zebra_crops = process_image(image_path, model)
         zebra, red, green = get_results(row, ptl_list, ptl_list, zebra, red, green)
 
-    zebra_metrics = calcular_metricas(zebra)
-    red_metrics = calcular_metricas(red)
-    green_metrics = calcular_metricas(green)
+    zebra_metrics = calculate_metrics(zebra)
+    red_metrics = calculate_metrics(red)
+    green_metrics = calculate_metrics(green)
 
     plot_confusion_matrices_with_metrics(zebra, red, green, zebra_metrics, red_metrics, green_metrics)
