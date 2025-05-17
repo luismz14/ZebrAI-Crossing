@@ -526,6 +526,11 @@ def show_metrics(y_test, y_pred):
     for var, val in mae_df["MAE"].items():
         print(f"{var:>12} | {val:>20.5f}")
 
+    print("\n{:>12} | {:>9} | {:>9} | {:>9} | {:>9}".format("Classe", "Accuracy", "Precision", "Recall", "F1"))
+    print("-" * 60)
+    for cls, metrics in classification_metrics.items():
+        print(f"{cls:>12} | {metrics['accuracy']:>9.3f} | {metrics['precision']:>9.3f} | {metrics['recall']:>9.3f} | {metrics['f1']:>9.3f}")
+
     for col in classification_metrics:
         cm = classification_metrics[col]['confusion_matrix']
         plt.figure()
@@ -558,9 +563,9 @@ def random_search(X_val, y_val, model, n_iter=10):
     samples = list(ParameterSampler(param_grid, n_iter=n_iter, random_state=42))
     results = []
 
-    for i, params in enumerate(tqdm(samples)):
+    for i, params in enumerate(samples):
         try:
-            y_hat = X_val.apply(lambda path: predict_img(path, model, **params))
+            y_hat = X_val.progress_apply(lambda path: predict_img(path, model, **params))
             y_hat = y_hat.reset_index(drop=True)
             y_val = y_val.reset_index(drop=True)
             mae_df = get_metrics(y_val, y_hat)
@@ -573,11 +578,12 @@ def random_search(X_val, y_val, model, n_iter=10):
     results.sort(key=lambda x: x[1])
     return results
 
+# Les division són per a normalitzar les variables segons les unitats
 weights = {
-    'x': 0.15,
-    'y': 0.15,
-    'theta_rad': 0.4,
-    'theta_deg': 0.3
+    'x': 1/876 * 0.1,
+    'y': 1/657 * 0.1,
+    'theta_rad': 1/np.pi * 0.5,
+    'theta_deg': 1/180 * 0.3
 }
 
 param_grid = {
@@ -601,11 +607,11 @@ param_grid = {
 }
 
 if __name__ == "__main__":
-    model = torch.hub.load('yolov5', 'custom', path='best.pt', source='local')
+    model = torch.hub.load('../yolov5', 'custom', path='../best.pt', source='local')
     tqdm.pandas()
     df = pd.read_csv('../data/dataset.csv')
     X, y = df["file"], df.drop(["file"], axis="columns")
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.01, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.001, random_state=42)
 
     # y_pred = X_test.progress_apply(lambda path: predict_img(path, model))
     # y_pred = y_pred.reset_index(drop=True)
@@ -617,4 +623,21 @@ if __name__ == "__main__":
     # show_metrics(y_test, y_pred)
     
     results = random_search(X_test, y_test, model)
-    print(results)
+    print("\nTop combinacions per score ponderat:")
+    print("=" * 50)
+    for i, (params, mae) in enumerate(results[:10]):
+        print(f"#{i+1} - Score: {mae:.5f}")
+        for k, v in params.items():
+            print(f"    {k}: {v}")
+        print("-" * 50)
+
+    print("\nResultats amb els millors paràmetres:")
+    y_pred = X_test.progress_apply(lambda path: predict_img(path, model, **results[0][0]))
+    y_pred = y_pred.reset_index(drop=True)
+    y_test = y_test.reset_index(drop=True)
+
+    df_test = pd.concat([X_test.reset_index(drop=True), y_test.reset_index(drop=True)], axis=1)
+    df_test.to_csv("./results/test.csv", index=False)
+    y_pred.to_csv("./results/pred.csv", index=False)
+    show_metrics(y_test, y_pred)
+    print("\nEls últims resultats s'han guardat a ./results")

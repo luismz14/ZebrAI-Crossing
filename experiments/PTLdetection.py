@@ -130,7 +130,7 @@ def plot_confusion_matrices_with_metrics(zebra, red, green, zebra_metrics, red_m
 
 
 if __name__ == "__main__":
-    model = torch.hub.load('yolov5', 'custom', path='best.pt', source='local')
+    model = torch.hub.load('../yolov5', 'custom', path='../best.pt', source='local')
     carpeta = '../data'
 
     df = pd.read_csv('../data/dataset.csv')
