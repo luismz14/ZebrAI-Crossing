@@ -611,7 +611,8 @@ if __name__ == "__main__":
     tqdm.pandas()
     df = pd.read_csv('../data/dataset.csv')
     X, y = df["file"], df.drop(["file"], axis="columns")
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.001, random_state=42)
+    X, y = X[:4000], y[:4000]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.75, random_state=42)
 
     # y_pred = X_test.progress_apply(lambda path: predict_img(path, model))
     # y_pred = y_pred.reset_index(drop=True)
@@ -622,7 +623,7 @@ if __name__ == "__main__":
     # y_pred.to_csv("./results/pred.csv", index=False)
     # show_metrics(y_test, y_pred)
     
-    results = random_search(X_test, y_test, model)
+    results = random_search(X_train, y_train, model)
     print("\nTop combinacions per score ponderat:")
     print("=" * 50)
     for i, (params, mae) in enumerate(results[:10]):
