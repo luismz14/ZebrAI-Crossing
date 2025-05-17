@@ -21,7 +21,13 @@ from tqdm import tqdm
 from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score, mean_absolute_error
 import seaborn as sns
 random.seed(42)
+import signal
 
+class TimeoutException(Exception):
+    pass
+
+def timeout_handler(signum, frame):
+    raise TimeoutException("Execució superada (timeout)")
 
 # -----------------------------------------------------------------------------------
 #  YOLO TRAFFIC LIGHT DETECTION
@@ -399,7 +405,7 @@ def get_angle(midpoints, shape):
                             max_trials=1000, random_state=42)
     ransac.fit(X, y)
 
-    m = 1/ransac.estimator_.coef_[0]
+    m = 1/ransac.estimator_.coef_[0] if ransac.estimator_.coef_[0] != 0 else np.inf
     angle_rad = np.atan(m)
     angle_deg = angle_rad * 180/np.pi
     
@@ -413,41 +419,43 @@ def get_init_point(midpoints):
 # -----------------------------------------------------------------------------------
 
 def predict_img(img_path, model, **kwargs):
-    path = '../data'+img_path
+    path = '../data' + img_path
     columns = ["zebra", "mode", "blocked", "x", "y", "theta_rad", "theta_deg"]
-    if not os.path.exists(path):
-        print("Fitxer no trobat:", path)
-        return pd.Series([0, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan], index=columns)
-
-    # Zebra Crossing ROI & Traffic Light Detection
-    traffic_lights, zebra_crops = process_image(path, model)
-    if is_empty(zebra_crops):
-        return pd.Series([0, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan], index=columns)
-    blocked = not is_empty(traffic_lights)
-    mode = int(traffic_lights[0]["color"] == "green") if blocked else 0
-
-    # Image ROI Crop
-    img = plt.imread(path)
-    (xmin, ymin, xmax, ymax) = zebra_crops[0][0]
-    if xmax - xmin <= 0 or ymax - ymin <= 0:
-        raise ValueError(f"ROI invàlida: {(xmin, ymin, xmax, ymax)}")
-    img = img[ymin:ymax, xmin:xmax]
-    if img.size == 0:
-        raise ValueError(f"ROI buida: {(xmin, ymin, xmax, ymax)}")
-    gray = to_uint8(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY))
 
     try:
-        # Zebra Crossing Pos + Angle Search
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(0.5)  # Timeout de 20 segons
+
+        if not os.path.exists(path):
+            print("Fitxer no trobat:", path)
+            return pd.Series([0, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan], index=columns)
+
+        traffic_lights, zebra_crops = process_image(path, model)
+        if is_empty(zebra_crops):
+            return pd.Series([0, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan], index=columns)
+
+        blocked = not is_empty(traffic_lights)
+        mode = int(traffic_lights[0]["color"] == "green") if blocked else 0
+
+        img = plt.imread(path)
+        (xmin, ymin, xmax, ymax) = zebra_crops[0][0]
+        if xmax - xmin <= 0 or ymax - ymin <= 0:
+            raise ValueError(f"ROI invàlida: {(xmin, ymin, xmax, ymax)}")
+        img = img[ymin:ymax, xmin:xmax]
+        if img.size == 0:
+            raise ValueError(f"ROI buida: {(xmin, ymin, xmax, ymax)}")
+        gray = to_uint8(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY))
+
         src = noise_filter(gray, **kwargs)
         thr = find_threshold(src, **kwargs)
         if not (0 <= thr <= 255):
             raise ValueError(f"Threshold invàlid: {thr}")
-        bw = 255*(src > thr).astype(np.uint8)
+        bw = 255 * (src > thr).astype(np.uint8)
         edges = get_edges(bw, **kwargs)
         filtered_lines = get_filtered_lines(edges, **kwargs)
         filtered_lines = remove_duplicate_lines(filtered_lines, gray.shape)
         if is_empty(filtered_lines):
-             raise Exception("No s'han trobat línies")
+            raise Exception("No s'han trobat línies")
 
         p_izq, p_der = get_limits(filtered_lines, edges, **kwargs)
         midpoints = get_mid_points(filtered_lines, p_izq, p_der, gray.shape)
@@ -455,14 +463,22 @@ def predict_img(img_path, model, **kwargs):
         x, y = get_init_point(midpoints)
 
         return pd.Series([1, mode, int(blocked), x, y, angle_rad, angle_deg], index=columns)
-    
-    except ValueError:
-        return pd.Series([1, mode, int(blocked), xmax//2, ymax//2, 0, 0], index=columns)
+
+    except (ValueError, TimeoutException):
+        return pd.Series([1, mode if 'mode' in locals() else np.nan, int(blocked) if 'blocked' in locals() else np.nan,
+                          xmax//2 if 'xmax' in locals() else np.nan,
+                          ymax//2 if 'ymax' in locals() else np.nan,
+                          0, 0], index=columns)
 
     except Exception as e:
         print("Error: ", e, " Imatge: ", path)
-        return pd.Series([1, mode, int(blocked), xmax//2, ymax//2, 0, 0], index=columns)
-        # raise e
+        return pd.Series([1, mode if 'mode' in locals() else np.nan, int(blocked) if 'blocked' in locals() else np.nan,
+                          xmax//2 if 'xmax' in locals() else np.nan,
+                          ymax//2 if 'ymax' in locals() else np.nan,
+                          0, 0], index=columns)
+
+    finally:
+        signal.alarm(0)  # Cancel·la l'alarma si tot ha anat bé
 
 # -----------------------------------------------------------------------------------
 #  EVALUATION
@@ -610,18 +626,9 @@ if __name__ == "__main__":
     model = torch.hub.load('../yolov5', 'custom', path='../best.pt', source='local')
     tqdm.pandas()
     df = pd.read_csv('../data/dataset.csv')
-    X, y = df["file"], df.drop(["file"], axis="columns")
-    X, y = X[:4000], y[:4000]
+    df_sample = df.sample(n=2000, random_state=42)
+    X, y = df_sample["file"], df_sample.drop(["file"], axis="columns")
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.75, random_state=42)
-
-    # y_pred = X_test.progress_apply(lambda path: predict_img(path, model))
-    # y_pred = y_pred.reset_index(drop=True)
-    # y_test = y_test.reset_index(drop=True)
-
-    # df_test = pd.concat([X_test.reset_index(drop=True), y_test.reset_index(drop=True)], axis=1)
-    # df_test.to_csv("./results/test.csv", index=False)
-    # y_pred.to_csv("./results/pred.csv", index=False)
-    # show_metrics(y_test, y_pred)
     
     results = random_search(X_train, y_train, model)
     print("\nTop combinacions per score ponderat:")
