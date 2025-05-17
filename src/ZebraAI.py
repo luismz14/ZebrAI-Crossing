@@ -424,7 +424,7 @@ def predict_img(img_path, model, **kwargs):
 
     try:
         signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(0.5)  # Timeout de 20 segons
+        signal.alarm(2)  # Timeout de 20 segons
 
         if not os.path.exists(path):
             print("Fitxer no trobat:", path)
@@ -603,7 +603,7 @@ weights = {
 }
 
 param_grid = {
-    'noise_option': ['median', 'gaussian', 'bilateral'],
+    'noise_option': ['median', 'gaussian', 'bilateral', 'top_hat', 'morph_max'],
     'med_k': [3, 5, 7],
     'gauss_sigma': [1.0, 1.5, 2.0],
     'bilat_d': [5, 7],
@@ -626,10 +626,9 @@ if __name__ == "__main__":
     model = torch.hub.load('../yolov5', 'custom', path='../best.pt', source='local')
     tqdm.pandas()
     df = pd.read_csv('../data/dataset.csv')
-    df_sample = df.sample(n=2000, random_state=42)
+    df_sample = df
     X, y = df_sample["file"], df_sample.drop(["file"], axis="columns")
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.75, random_state=42)
-    
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.75, random_state=42)    
     results = random_search(X_train, y_train, model)
     print("\nTop combinacions per score ponderat:")
     print("=" * 50)
