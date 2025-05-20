@@ -18,6 +18,12 @@ ZebrAI Crossing és un sistema de visió per computador que, donada una imatge d
 
 Aquest sistema forma part del projecte **OrionWay**, un robot autònom destinat a guiar persones amb discapacitat visual.
 
+### Fitxers importants
+- **Script principal:** [`ZebraAI.py`](./src/ZebraAI.py)
+- **Informe:** [`1587933_1668180_1668018_ZebrAI.pdf`](./latex/1587933_1668180_1668018_ZebrAI.pdf)
+- **Notebook del procés:** [`edges.ipynb`](./experiments/edges.ipynb)
+- **Hough implementat des de zero:** [`hough.ipynb`](./experiments/hough.ipynb)
+
 ## Estructura del repositori
 
 ```
@@ -37,9 +43,3 @@ Aquest sistema forma part del projecte **OrionWay**, un robot autònom destinat 
 ├── .gitignore
 └── README.md
 ```
-
-### Fitxers importants
-- **Script principal:** [`ZebraAI.py`](./src/ZebraAI.py)
-- **Informe:** [`1587933_1668180_1668018_ZebrAI.pdf`](./latex/1587933_1668180_1668018_ZebrAI.pdf)
-- **Notebook del procés:** [`edges.ipynb`](./experiments/edges.ipynb)
-- **Hough implementat des de zero:** [`hough.ipynb`](./experiments/hough.ipynb)
