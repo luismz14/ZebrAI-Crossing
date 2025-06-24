@@ -23,7 +23,7 @@ psutil==6.1.0
 pycocotools==2.0.8
 PyYAML==5.4.1
 PyYAML==6.0.2
-Requests==2.32.3
+requests>=2.32.4
 scikit_learn==1.6.1
 scipy==1.15.3
 seaborn==0.13.2
@@ -33,7 +33,7 @@ tensorflowjs==4.22.0
 tensorrt==10.11.0.33
 tflite_runtime==2.14.0
 tflite_support==0.4.4
-torch==2.7.0
+torch>=2.7.1-rc1
 torchvision==0.22.0
 tqdm==4.67.1
 tritonclient==2.57.0
