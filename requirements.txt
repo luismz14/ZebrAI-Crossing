@@ -18,12 +18,12 @@ openvino
 paddle
 pafy
 pandas
-pillow>=11.3.0
+pillow
 psutil
 pycocotools
 PyYAML
 PyYAML
-requests>=2.32.4
+requests
 scikit_learn
 scipy
 seaborn
@@ -33,7 +33,7 @@ tensorflowjs
 tensorrt
 tflite_runtime
 tflite_support
-torch>=2.7.1-rc1
+torch
 torchvision
 tqdm
 tritonclient
