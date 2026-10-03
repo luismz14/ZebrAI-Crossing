@@ -54,6 +54,6 @@ This command runs parameter search and evaluation, and writes `src/results/test.
 - The dependency list contains overlapping OpenCV packages and numerous optional export runtimes. No dependency modernization was performed.
 - Original notebook code/narrative and implementation language remain. Restricted saved image representations are omitted; complete notebooks and submitted report are preserved privately. Aggregate plots remain historical evidence.
 - The checkpoint is excluded, and `yolov5` is uninitialized here. Both must be supplied appropriately for historical local model loading.
-- No source-code license is included. [DATA_ASSETS.md](DATA_ASSETS.md) records sources, unresolved terms and exclusions. Preserve all applicable upstream notices.
+- Repository-authored source code is licensed under [MIT](LICENSE). Third-party data/assets, upstream libraries, submodules and external models retain their own terms; MIT does not relicense them. [DATA_ASSETS.md](DATA_ASSETS.md) records sources, unresolved terms and exclusions. Preserve all applicable upstream notices.
 
 This repository documents an academic prototype; it does not establish a validated assistive-navigation system.

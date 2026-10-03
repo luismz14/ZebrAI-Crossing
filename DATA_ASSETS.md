@@ -1,6 +1,6 @@
 # Data, model and academic-asset provenance
 
-Publication review: 2026-10-03. Historical academic source and aggregate evidence are not a fully reproducible or validated navigation system. No project source license is selected. Third-party licenses/notices remain independent and must be preserved.
+Publication review: 2026-10-03. Historical academic source and aggregate evidence are not a fully reproducible or validated navigation system. Repository-authored source code uses [MIT](LICENSE); third-party data, assets, libraries, submodules and models retain their own terms. Third-party licenses/notices remain independent and must be preserved.
 
 ## Upstream dataset families
 
@@ -25,6 +25,6 @@ The six confusion matrices (`latex/figs/{blocked,mode,zebra}.png` and `src/resul
 
 From `src/`, the main script expects `../yolov5`, `../best.pt` and `../data/dataset.csv`. Obtain authorized images, labels and checkpoint separately. The historical evaluation schema includes `file`, `zebra`, `mode`, `blocked`, `x`, `y`, `theta_rad` and `theta_deg`; check actual source contracts rather than reconstructing labels from figures. Notebook paths also refer to local `data/examples_cropped/` images. Full execution is unavailable from the public tree alone.
 
-The pinned YOLOv5 submodule remains unchanged/uninitialized here. Check and preserve its exact revision's upstream license when supplying it; a future project license cannot override upstream terms. No third-party notice was removed.
+The pinned YOLOv5 submodule remains unchanged/uninitialized here. Check and preserve its exact revision's upstream license when supplying it; the project MIT license cannot override upstream terms. No third-party notice was removed.
 
 Geometry semantics, metrics, RANSAC/fallback behavior, evaluation splits, Unix timeout limitations and conclusions remain unresolved. No model execution/report regeneration occurred. Prior Git copies remain; historical cleanup is a separate manual owner decision.
