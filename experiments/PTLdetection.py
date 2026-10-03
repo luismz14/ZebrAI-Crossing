@@ -1,5 +1,4 @@
 import torch
-import os
 import cv2
 import matplotlib
 matplotlib.use('Agg')
@@ -83,12 +82,12 @@ def get_results(row, ptl_list, zebra_crops, zebra, red, green):
 
     return zebra, red, green
 
-def calculate_metrics(type):
-    total = sum(type)
-    tp = type[0]
-    fp = type[1]
-    fn = type[2]
-    tn = type[3]
+def calculate_metrics(counts):
+    total = sum(counts)
+    tp = counts[0]
+    fp = counts[1]
+    fn = counts[2]
+    tn = counts[3]
 
     accuracy = (tp + tn) / total if total > 0 else 0
 

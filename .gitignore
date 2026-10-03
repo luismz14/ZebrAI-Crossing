@@ -1,3 +1,38 @@
-/data
-# /yolov5
-# best.pt
+# Local input datasets
+/data/
+
+# Local Python environments and generated caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.pytest_cache/
+
+# Local credentials and editor state
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+.DS_Store
+
+# Local historical inputs/assets excluded under the publication provenance policy.
+/best.pt
+/src/results/test.csv
+/src/results/pred.csv
+/experiments/cube.png
+/latex/figs/neu1.jpg
+/latex/figs/angle.png
+/latex/figs/Hough_molt_tolerant.png
+/latex/figs/Hough_restrictiu.png
+/latex/figs/filtrat_fuga.png
+/latex/figs/filtrat_proximitat.png
+/latex/figs/limit.png
+/latex/figs/mid_points.png
+/latex/figs/med_neu1.png
+/latex/figs/canny.png
+/latex/figs/log.png
+/latex/figs/mog.png
+/latex/1587933_1668180_1668018_ZebrAI.pdf
+/latex/1587933_1668180_1668018_ZebrAI.tex

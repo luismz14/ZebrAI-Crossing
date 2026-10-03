@@ -1,3 +1,9 @@
+"""Crosswalk geometry and traffic-light evaluation; run from src on Unix.
+
+The entry point performs parameter search and overwrites recorded result files.
+Local dataset images, custom weights, and the YOLOv5 submodule are required.
+"""
+
 import matplotlib.pyplot as plt
 plt.rcParams['image.interpolation'] = 'none'
 import numpy as np
@@ -15,7 +21,6 @@ import torch
 import pandas as pd
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
-import random
 import os
 from tqdm import tqdm
 from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score, mean_absolute_error
@@ -342,7 +347,7 @@ def get_limits(representative_lines, edges, ransac_dist=20, ransac_n_iter=100, *
             lista_extremos.append(extremos)
     lista_extremos = np.array(lista_extremos)
 
-    # Retornem els límits de la imatge en cas de no trobar múltiples extrems
+    # Fall back to image borders when too few stripe endpoints are available.
     if len(lista_extremos) <= 1:
         h, w = edges.shape
         return ((0,0), (0,h)), ((w,0), (w,h))
@@ -419,12 +424,16 @@ def get_init_point(midpoints):
 # -----------------------------------------------------------------------------------
 
 def predict_img(img_path, model, **kwargs):
+    """Return geometry in cropped ROI coordinates using dataset-relative paths.
+
+    Requires Unix SIGALRM in the main thread; failures retain legacy fallbacks.
+    """
     path = '../data' + img_path
     columns = ["zebra", "mode", "blocked", "x", "y", "theta_rad", "theta_deg"]
 
     try:
         signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(2)  # Timeout de 20 segons
+        signal.alarm(2)  # Limit each image to two seconds on Unix platforms.
 
         if not os.path.exists(path):
             print("Fitxer no trobat:", path)
@@ -478,7 +487,7 @@ def predict_img(img_path, model, **kwargs):
                           0, 0], index=columns)
 
     finally:
-        signal.alarm(0)  # Cancel·la l'alarma si tot ha anat bé
+        signal.alarm(0)  # Cancel the timeout on every exit, including errors.
 
 # -----------------------------------------------------------------------------------
 #  EVALUATION
@@ -486,11 +495,9 @@ def predict_img(img_path, model, **kwargs):
 
 def show_metrics(y_test, y_pred):
 
-    # Simulem que y_test i y_pred ja estan definits
     columns_classification = ['zebra', 'mode', 'blocked']
     columns_regression = ['x', 'y', 'theta_rad', 'theta_deg']
 
-    # Inicialitzem diccionaris per guardar resultats
     classification_metrics = {}
     mae_metrics = {}
 
@@ -594,7 +601,7 @@ def random_search(X_val, y_val, model, n_iter=10):
     results.sort(key=lambda x: x[1])
     return results
 
-# Les division són per a normalitzar les variables segons les unitats
+# Normalize pixel and angle errors before combining their weights.
 weights = {
     'x': 1/876 * 0.1,
     'y': 1/657 * 0.1,

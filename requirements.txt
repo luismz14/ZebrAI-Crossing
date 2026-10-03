@@ -3,7 +3,6 @@ comet_ml
 coremltools
 Flask
 GitPython
-GitPython
 ipython
 matplotlib
 mss
@@ -21,7 +20,6 @@ pandas
 pillow
 psutil
 pycocotools
-PyYAML
 PyYAML
 requests
 scikit_learn
